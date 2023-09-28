@@ -4,6 +4,7 @@
 portainer_release_version=""
 portainer_version=""
 backup_directory="/backup/portainer"
+backup_date=$(date +'%Y-%m-%d-%H-%M-%S')
 start_time=$SECONDS
 
 # Define text colors
