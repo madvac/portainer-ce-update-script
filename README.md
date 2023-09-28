@@ -1,1 +1,1 @@
-# portainer-ce-updater-script
+# portainer-ce-update-script
