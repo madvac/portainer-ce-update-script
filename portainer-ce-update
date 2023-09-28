@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# Initialize the variables
+portainer_release_version=""
+portainer_version=""
+backup_directory="/backup/portainer"
+start_time=$SECONDS
+
+# Define text colors
+cyan='\e[0;36m'
+green='\e[0;32m'
+red='\e[0;31m'
+rc='\e[0m' # Reset color
+
+# Function to echo with timestamp
+timestamp_echo() {
+    local timestamp=$(date +"%H:%M:%S")
+    local message="$1"
+    echo -e "${timestamp} - $message"
+}
+
+# Function to display the running time in seconds with milliseconds
+display_running_time() {
+    local elapsed_time=$((SECONDS - start_time))
+    local seconds=$((elapsed_time % 60))
+    local milliseconds=$(date +"%3N")
+    timestamp_echo "${cyan}Script has been running for: ${green}${seconds}.${milliseconds}s${cyan}.${rc}"
+}
+
+# Check if the backup directory exists, create it if not
+if [ ! -d "$backup_directory" ]; then
+    mkdir -p "$backup_directory"
+    timestamp_echo "${cyan}Backup directory created: $backup_directory${rc}"
+fi
+
+# Define the Portainer release URL
+portainer_release_url="https://github.com/portainer/portainer/releases/latest"
+
+# Use curl to fetch the release page and grep for the release name
+portainer_release_name=$(curl -sSLI -o /dev/null -w %{url_effective} $portainer_release_url | rev | cut -d'/' -f1 | rev)
+
+# Extract the version from the release name
+portainer_release_version=$(echo $portainer_release_name | sed 's/v\([0-9]*\.[0-9]*\.[0-9]*\)/\1/')
+
+# Check if Portainer CE is running in Docker
+if docker ps | grep -q "portainer/portainer-ce"; then
+    # Get Portainer CE version and assign it to the variable
+    portainer_version=$(docker run --rm portainer/portainer-ce --version 2>&1)
+
+    # Check if the versions match
+    if [ "$portainer_release_version" == "$portainer_version" ]; then
+        timestamp_echo "${cyan}Portainer Community Edition is already running and up-to-date (version: ${green}$portainer_version${cyan}).${rc}"
+    else
+        timestamp_echo "${cyan}Portainer Community Edition is already running (version: ${green}$portainer_version${cyan}), but the latest version is ${green}$portainer_release_version${cyan}.${rc}"
+        read -p "Do you want to update Portainer CE? (y/n): " update_choice
+        if [[ "$update_choice" == "y" ]]; then
+            timestamp_echo "${green}Stopping and creating a backup of the existing Portainer CE container...${rc}"
+            docker stop portainer
+
+            # Create a backup of Portainer data
+            if [ -n "$portainer_version" ]; then
+                backup_file="portainer-$portainer_version-$backup_date.tar.gz"
+                docker run --rm -v portainer_data:/data -v "$backup_directory:/backup" alpine tar -czf "/backup/$backup_file" -C /data .
+                timestamp_echo "${green}Backup of Portainer data created: $backup_directory/$backup_file${rc}"
+            else
+                timestamp_echo "${red}Cannot create a backup because Portainer version is unknown.${rc}"
+            fi
+
+            # Stop and remove the existing Portainer CE container
+            docker rm portainer
+
+            timestamp_echo "${green}Pulling the latest Portainer CE image and running a new container...${rc}"
+            docker pull portainer/portainer-ce:latest
+            docker run -d -p 8000:8000 -p 9443:9443 --name=portainer-ce --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
+            timestamp_echo "${green}Portainer Community Edition updated to the latest version.${rc}"
+        else
+            timestamp_echo "${cyan}Portainer CE will not be updated.${rc}"
+        fi
+    fi
+else
+    timestamp_echo "${red}Portainer Community Edition is not running in Docker.${rc}"
+fi
+
+# Display the running time
+display_running_time
