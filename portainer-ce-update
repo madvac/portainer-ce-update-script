@@ -56,7 +56,7 @@ if docker ps | grep -q "portainer/portainer-ce"; then
         read -p "Do you want to update Portainer CE? (y/n): " update_choice
         if [[ "$update_choice" == "y" ]]; then
             timestamp_echo "${green}Stopping and creating a backup of the existing Portainer CE container...${rc}"
-            docker stop portainer
+            docker stop portainer-ce
 
             # Create a backup of Portainer data
             if [ -n "$portainer_version" ]; then
@@ -68,7 +68,7 @@ if docker ps | grep -q "portainer/portainer-ce"; then
             fi
 
             # Stop and remove the existing Portainer CE container
-            docker rm portainer
+            docker rm portainer-ce
 
             timestamp_echo "${green}Pulling the latest Portainer CE image and running a new container...${rc}"
             docker pull portainer/portainer-ce:latest
