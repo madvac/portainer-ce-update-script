@@ -4,7 +4,6 @@
 portainer_release_version=""
 portainer_version=""
 backup_directory="/backup/portainer"
-backup_date=$(date +'%Y-%m-%d-%H-%M-%S')
 start_time=$SECONDS
 
 # Define text colors
@@ -61,7 +60,7 @@ if docker ps | grep -q "portainer/portainer-ce"; then
             # Create a backup of Portainer data
             if [ -n "$portainer_version" ]; then
                 backup_file="portainer-$portainer_version-$backup_date.tar.gz"
-                docker run --rm -v portainer_data:/data -v "$backup_directory:/backup" alpine tar -czf "/backup/$backup_file" -C /data .
+                docker cp portainer-ce:/data - > "$backup_directory/$backup_file"
                 timestamp_echo "${green}Backup of Portainer data created: $backup_directory/$backup_file${rc}"
             else
                 timestamp_echo "${red}Cannot create a backup because Portainer version is unknown.${rc}"
